@@ -1,0 +1,24 @@
+{
+  "name": "reachinbox-email-scheduler",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "dev:api": "pnpm --filter @reachinbox/api dev",
+    "dev:web": "pnpm --filter @reachinbox/web dev",
+    "dev:worker": "pnpm --filter @reachinbox/api worker",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "test": "pnpm -r --if-present test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "eslint": "^9.35.0",
+    "media-typer": "^1.1.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.42.0"
+  }
+}

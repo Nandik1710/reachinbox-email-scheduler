@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum EmailStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  SENT
+  FAILED
+}
+
+enum SenderStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SlackConnectionStatus {
+  CONNECTED
+  DISCONNECTED
+}
+
+enum SearchIndexStatus {
+  PENDING
+  INDEXED
+  FAILED
+}
+
+model User {
+  id              String           @id @default(cuid())
+  googleId        String           @unique @db.VarChar(255)
+  email           String           @unique @db.VarChar(320)
+  name            String           @db.VarChar(160)
+  avatarUrl       String?          @db.VarChar(2048)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  senders         Sender[]
+  campaigns       Campaign[]
+  emails          Email[]
+  slackConnection SlackConnection?
+
+  @@index([createdAt])
+}
+
+model Sender {
+  id              String       @id @default(cuid())
+  userId          String
+  email           String       @db.VarChar(320)
+  displayName     String?      @db.VarChar(160)
+  provider        String       @default("ethereal") @db.VarChar(64)
+  providerAccount String?      @db.VarChar(255)
+  status          SenderStatus @default(ACTIVE)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns       Campaign[]
+  emails          Email[]
+
+  @@unique([userId, email])
+  @@index([userId, status])
+}
+
+model Campaign {
+  id          String         @id @default(cuid())
+  userId      String
+  senderId    String?
+  subject     String         @db.VarChar(998)
+  body        String         @db.Text
+  startAt     DateTime
+  delayMs     Int            @default(2000)
+  hourlyLimit Int            @default(200)
+  status      CampaignStatus @default(DRAFT)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sender      Sender?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  emails      Email[]
+
+  @@index([userId, status, createdAt])
+  @@index([userId, startAt])
+  @@index([senderId, status, startAt])
+}
+
+model Email {
+  id                  String                 @id @default(cuid())
+  userId              String
+  campaignId          String
+  senderId            String
+  recipient           String                 @db.VarChar(320)
+  subject             String                 @db.VarChar(998)
+  status              EmailStatus            @default(PENDING)
+  scheduledAt         DateTime
+  processingStartedAt DateTime?
+  sentAt              DateTime?
+  failedAt            DateTime?
+  failureReason       String?                @db.Text
+  providerMessageId   String?                @db.VarChar(512)
+  previewUrl          String?                @db.VarChar(2048)
+  attemptCount        Int                    @default(0)
+  queueName           String                 @default("email-sends") @db.VarChar(128)
+  queueJobId          String                 @unique @db.VarChar(255)
+  searchIndexStatus   SearchIndexStatus      @default(PENDING)
+  searchIndexedAt     DateTime?
+  searchIndexError    String?                @db.Text
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  user                User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign            Campaign               @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sender              Sender                 @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  attempts            EmailDeliveryAttempt[]
+
+  @@unique([campaignId, recipient])
+  @@index([userId, status, scheduledAt])
+  @@index([senderId, status, scheduledAt])
+  @@index([campaignId, status])
+  @@index([scheduledAt, status])
+  @@index([recipient])
+}
+
+model EmailDeliveryAttempt {
+  id                String    @id @default(cuid())
+  emailId           String
+  attemptNumber     Int
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+  providerMessageId String?   @db.VarChar(512)
+  errorMessage      String?   @db.Text
+  email             Email     @relation(fields: [emailId], references: [id], onDelete: Cascade)
+
+  @@unique([emailId, attemptNumber])
+  @@index([emailId, startedAt])
+}
+
+model SlackConnection {
+  id             String                @id @default(cuid())
+  userId         String                @unique
+  teamId         String                @db.VarChar(255)
+  teamName       String?               @db.VarChar(255)
+  channelId      String?               @db.VarChar(255)
+  channelName    String?               @db.VarChar(255)
+  accessTokenEnc String                @db.Text
+  scope          String?               @db.VarChar(1024)
+  status         SlackConnectionStatus @default(CONNECTED)
+  connectedAt    DateTime              @default(now())
+  disconnectedAt DateTime?
+  updatedAt      DateTime              @updatedAt
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
