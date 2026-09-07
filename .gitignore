@@ -56,8 +56,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-UPDATES.md
-CODEX_BUILD_PROMPTS.md
 
 outputs/
 Supporting PPT/
